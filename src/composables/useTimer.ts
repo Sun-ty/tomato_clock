@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed, toRef } from 'vue';
 import { useTimerStore } from '@/stores/timer';
 import { useSettingsStore } from '@/stores/settings';
 import { useTaskStore } from '@/stores/task';
@@ -11,6 +11,7 @@ export function useTimer() {
   
   const showCelebration = ref(false);
   const celebrationType = ref<'pomodoro-complete' | 'break-start'>('pomodoro-complete');
+  const completedPomodoros = toRef(timerStore, 'completedPomodoros');
 
   const displayTime = computed(() => {
     const secs = timerStore.remainingTime;
@@ -67,7 +68,7 @@ export function useTimer() {
     
     const pomodorosBeforeBreak = settingsStore.settings.pomodorosBeforeLongBreak;
     
-    if (timerStore.completedPomodoros % pomodorosBeforeBreak === 0) {
+    if (completedPomodoros.value % pomodorosBeforeBreak === 0) {
       setTimeout(() => {
         showCelebration.value = false;
         startBreakTimer();
@@ -82,11 +83,14 @@ export function useTimer() {
   function handleBreakComplete() {
     celebrationType.value = 'break-start';
     showCelebration.value = true;
-    
+
     timerStore.completeTimer();
-    
+
     setTimeout(() => {
       showCelebration.value = false;
+      const resetCount =
+        completedPomodoros.value % settingsStore.settings.pomodorosBeforeLongBreak;
+      timerStore.setCompletedPomodoros(resetCount);
       timerStore.setMode('pomodoro', settingsStore.settings.pomodoroDuration);
       timerStore.setDuration(settingsStore.settings.pomodoroDuration);
     }, 2000);
@@ -121,7 +125,7 @@ export function useTimer() {
       
       const pomodorosBeforeBreak = settingsStore.settings.pomodorosBeforeLongBreak;
       
-      if (timerStore.completedPomodoros % pomodorosBeforeBreak === 0) {
+      if (completedPomodoros.value % pomodorosBeforeBreak === 0) {
         setTimeout(() => {
           showCelebration.value = false;
           startBreakTimer();
@@ -134,6 +138,11 @@ export function useTimer() {
     } else {
       timerStore.skipTimer();
       showCelebration.value = false;
+      const resetCount =
+        completedPomodoros.value % settingsStore.settings.pomodorosBeforeLongBreak;
+      timerStore.setCompletedPomodoros(resetCount);
+      timerStore.setMode('pomodoro', settingsStore.settings.pomodoroDuration);
+      timerStore.setDuration(settingsStore.settings.pomodoroDuration);
     }
   }
 
@@ -166,15 +175,15 @@ export function useTimer() {
     handleSkip,
     handleReset,
     setTaskForTimer,
-    mode: timerStore.mode,
-    status: timerStore.status,
+    mode: toRef(timerStore, 'mode'),
+    status: toRef(timerStore, 'status'),
     isRunning: timerStore.isRunning,
     isPaused: timerStore.isPaused,
     isIdle: timerStore.isIdle,
     isPomodoro: timerStore.isPomodoro,
     isBreak: timerStore.isBreak,
-    currentTaskId: timerStore.currentTaskId,
-    completedPomodoros: timerStore.completedPomodoros,
+    currentTaskId: toRef(timerStore, 'currentTaskId'),
+    completedPomodoros: toRef(timerStore, 'completedPomodoros'),
     progress: timerStore.progress,
     pauseTimer: timerStore.pauseTimer,
     resumeTimer: timerStore.resumeTimer,

@@ -22,8 +22,8 @@ const {
   currentModeLabel,
   progressPercent,
   completedPomodoros,
-  isBreak,
   startFocusTimer,
+  startBreakTimer,
   pauseTimer,
   resumeTimer,
   handleReset,
@@ -56,21 +56,25 @@ const pomodorosBeforeBreak = computed(() => {
 
 const completedInCycle = computed(() => {
   const target = pomodorosBeforeBreak.value || 4;
-  const completed = Number(completedPomodoros) || 0;
-  return completed % target;
+  const completed = Number(completedPomodoros.value) || 0;
+  const remainder = completed % target;
+  return remainder === 0 && completed > 0 ? target : remainder;
 });
 
 const nextBreakAt = computed(() => {
   const target = pomodorosBeforeBreak.value || 4;
-  return target - completedInCycle.value;
+  const completed = Number(completedPomodoros.value) || 0;
+  if (completed === 0) return target;
+  const remainder = completed % target;
+  return remainder === 0 ? 0 : target - remainder;
 });
 
 function handleStart() {
-  if (selectedTaskId.value) {
-    startFocusTimer(selectedTaskId.value);
-  } else {
-    startFocusTimer(null);
+  if (nextBreakAt.value === 0) {
+    startBreakTimer();
+    return;
   }
+  startFocusTimer(selectedTaskId.value || null);
 }
 
 function handlePause() {
@@ -147,18 +151,24 @@ defineExpose({
         :progress="progressRatio"
         :size="280"
         :stroke-width="10"
-        :color="isBreak ? '#22c55e' : 'var(--color-primary-500)'"
-        :track-color="isBreak ? '#dcfce7' : '#f3e8ff'"
+        :color="timerStore.isBreak ? '#22c55e' : 'var(--color-primary-500)'"
+        :track-color="timerStore.isBreak ? '#dcfce7' : '#f3e8ff'"
       >
         <div class="text-center">
           <span
             class="text-7xl font-bold tabular-nums transition-colors duration-300"
-            :class="isBreak ? 'text-green-600' : 'text-primary-600'"
+            :class="timerStore.isBreak ? 'text-green-600' : 'text-primary-600'"
           >
             {{ displayTime }}
           </span>
           <p class="mt-2 text-sm text-text-secondary">
-            {{ isBreak ? '休息一下，放松身心' : '保持专注，加油！' }}
+            {{
+              timerStore.isBreak
+                ? '休息一下，放松身心'
+                : nextBreakAt === 0
+                ? '可以休息啦'
+                : '保持专注，加油！'
+            }}
           </p>
         </div>
       </CircularProgress>
@@ -181,6 +191,7 @@ defineExpose({
           距休息还有 {{ nextBreakAt }} 个
         </span>
       </div>
+
     </div>
 
     <div class="mt-8">
@@ -189,6 +200,7 @@ defineExpose({
         :is-paused="isPaused"
         :is-idle="isIdle"
         :skip-disabled="isIdle"
+        :pause-disabled="timerStore.isBreak"
         @start="handleStart"
         @pause="handlePause"
         @resume="handleResume"

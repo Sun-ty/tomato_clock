@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { CheckCircle, Clock, Target, TrendingUp } from 'lucide-vue-next';
 import { useTaskStore } from '@/stores/task';
 
@@ -27,6 +27,96 @@ const dailyGoal = 4;
 const progressToGoal = computed(() => {
   const pomodoros = todayStats.value?.completedPomodoros || 0;
   return Math.min(100, Math.round((pomodoros / dailyGoal) * 100));
+});
+
+interface PieSlice {
+  name: string;
+  count: number;
+  percent: number;
+  color: string;
+}
+
+const chartColors = [
+  '#ef4444',
+  '#f97316',
+  '#f59e0b',
+  '#84cc16',
+  '#10b981',
+  '#06b6d4',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#d946ef',
+];
+
+const pieData = computed<PieSlice[]>(() => {
+  const total = todayStats.value?.completedPomodoros || 0;
+  if (total === 0) return [];
+
+  const slices: PieSlice[] = [];
+
+  // 有任务关联的番茄钟按任务名统计
+  taskStore.todayTasks.forEach((task) => {
+    if (task.pomodoroCount > 0) {
+      slices.push({
+        name: task.content,
+        count: task.pomodoroCount,
+        percent: (task.pomodoroCount / total) * 100,
+        color: '',
+      });
+    }
+  });
+
+  // 非任务番茄钟单独统计
+  const taskTotal = slices.reduce((sum, slice) => sum + slice.count, 0);
+  const untracked = total - taskTotal;
+  if (untracked > 0) {
+    slices.push({
+      name: '未关联任务',
+      count: untracked,
+      percent: (untracked / total) * 100,
+      color: '',
+    });
+  }
+
+  return slices.map((slice, index) => ({
+    ...slice,
+    color: chartColors[index % chartColors.length],
+  }));
+});
+
+const hoveredSlice = ref<number | null>(null);
+
+const piePaths = computed(() => {
+  const data = pieData.value;
+  if (data.length === 0) return [];
+
+  const radius = 80;
+  const centerX = 100;
+  const centerY = 100;
+  let startAngle = -Math.PI / 2;
+
+  return data.map((slice) => {
+    const angle = (slice.percent / 100) * Math.PI * 2;
+    const endAngle = startAngle + angle;
+
+    const x1 = centerX + radius * Math.cos(startAngle);
+    const y1 = centerY + radius * Math.sin(startAngle);
+    const x2 = centerX + radius * Math.cos(endAngle);
+    const y2 = centerY + radius * Math.sin(endAngle);
+
+    const largeArcFlag = angle > Math.PI ? 1 : 0;
+
+    const path = [
+      `M ${centerX} ${centerY}`,
+      `L ${x1} ${y1}`,
+      `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+      'Z',
+    ].join(' ');
+
+    startAngle = endAngle;
+    return { path, color: slice.color };
+  });
 });
 </script>
 
@@ -92,47 +182,98 @@ const progressToGoal = computed(() => {
         <span class="font-semibold text-primary-600">{{ pendingCount }} 项</span>
       </div>
 
-      <div class="pt-4 border-t border-gray-100">
-        <div class="text-center py-4">
-          <div class="text-4xl font-bold text-primary-500 mb-1">
-            {{ completionRate }}%
+    </div>
+
+    <!-- 番茄钟分布饼图 -->
+    <div class="pt-4 border-t border-gray-100 mt-4">
+      <h3 class="text-sm font-medium text-text-secondary mb-3 flex items-center gap-2">
+        <Target class="w-4 h-4" />
+        番茄钟分布
+      </h3>
+
+      <div
+        v-if="todayStats.completedPomodoros === 0"
+        class="text-center py-6 text-text-tertiary text-sm"
+      >
+        还没有完成番茄钟，开始专注吧！
+      </div>
+
+      <div v-else class="flex flex-col items-center">
+        <div class="relative w-40 h-40 mb-4">
+          <svg viewBox="0 0 200 200" class="w-full h-full">
+            <circle cx="100" cy="100" r="80" fill="#f3f4f6" />
+            <path
+              v-for="(slice, index) in piePaths"
+              :key="index"
+              :d="slice.path"
+              :fill="slice.color"
+              stroke="white"
+              stroke-width="2"
+              class="transition-all duration-200 cursor-pointer hover:brightness-110"
+              :style="{ transformOrigin: '100px 100px' }"
+              @mouseenter="hoveredSlice = index"
+              @mouseleave="hoveredSlice = null"
+              :transform="hoveredSlice === index ? 'scale(1.06)' : 'scale(1)'"
+            />
+            <circle cx="100" cy="100" r="45" fill="white" />
+            <text
+              x="100"
+              y="95"
+              text-anchor="middle"
+              class="text-[10px] fill-text-secondary pointer-events-none"
+            >
+              完成
+            </text>
+            <text
+              x="100"
+              y="115"
+              text-anchor="middle"
+              class="text-sm font-bold fill-text-primary pointer-events-none"
+            >
+              {{ todayStats.completedPomodoros }}
+            </text>
+          </svg>
+
+          <div
+            v-if="hoveredSlice !== null"
+            class="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full px-3 py-2 bg-white rounded-lg shadow-lg border border-gray-100 text-xs whitespace-nowrap z-10"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                class="w-2 h-2 rounded-full flex-shrink-0"
+                :style="{ backgroundColor: pieData[hoveredSlice].color }"
+              />
+              <span class="font-medium text-text-primary">
+                {{ pieData[hoveredSlice].name }}
+              </span>
+            </div>
+            <div class="mt-1 text-text-secondary">
+              {{ pieData[hoveredSlice].count }} 个番茄钟 ·
+              {{ Math.round(pieData[hoveredSlice].percent) }}%
+            </div>
           </div>
-          <p class="text-sm text-text-secondary">
-            {{
-              completionRate === 100
-                ? '太棒了！全部完成！'
-                : completionRate >= 70
-                ? '效率很高，继续保持！'
-                : completionRate >= 40
-                ? '进展不错，加油！'
-                : '开始行动吧！'
-            }}
-          </p>
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 w-full">
+          <div
+            v-for="(slice, index) in pieData"
+            :key="index"
+            class="flex items-center gap-2 text-xs px-2 py-1 rounded-lg transition-colors cursor-pointer"
+            :class="hoveredSlice === index ? 'bg-gray-100' : ''"
+            @mouseenter="hoveredSlice = index"
+            @mouseleave="hoveredSlice = null"
+          >
+            <span
+              class="w-3 h-3 rounded-full flex-shrink-0"
+              :style="{ backgroundColor: slice.color }"
+            />
+            <span class="text-text-secondary truncate max-w-[120px]">{{ slice.name }}</span>
+            <span class="font-medium text-text-primary flex-shrink-0">
+              {{ slice.count }}个
+            </span>
+          </div>
         </div>
       </div>
     </div>
-
-    <div class="mt-4 grid grid-cols-4 gap-2">
-      <div
-        v-for="i in 4"
-        :key="i"
-        class="aspect-square rounded-lg flex items-center justify-center transition-all duration-300"
-        :class="
-          i <= todayStats.completedPomodoros
-            ? 'bg-primary-500 shadow-md shadow-primary-500/30'
-            : 'bg-gray-100'
-        "
-      >
-        <span
-          v-if="i <= todayStats.completedPomodoros"
-          class="text-white text-lg"
-        >
-          🍅
-        </span>
-      </div>
-    </div>
-    <p class="text-center text-xs text-text-tertiary mt-2">
-      完成 4 个番茄钟后进入长休息
-    </p>
   </div>
 </template>

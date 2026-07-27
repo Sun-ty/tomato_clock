@@ -149,13 +149,13 @@ export const useTimerStore = defineStore('timer', () => {
 
   function restoreRunningTimer() {
     const saved = storage.getTimerState();
+    mode.value = saved.mode;
+    totalTime.value = saved.totalTime;
+    remainingTime.value = saved.remainingTime;
+    currentTaskId.value = saved.currentTaskId;
+    completedPomodoros.value = saved.completedPomodoros;
+
     if (saved.status === 'running' && saved.remainingTime > 0) {
-      mode.value = saved.mode;
-      totalTime.value = saved.totalTime;
-      remainingTime.value = saved.remainingTime;
-      currentTaskId.value = saved.currentTaskId;
-      completedPomodoros.value = saved.completedPomodoros;
-      
       status.value = 'running';
       intervalId.value = window.setInterval(() => {
         if (status.value !== 'running') return;

@@ -7,6 +7,7 @@ const props = defineProps<{
   isIdle: boolean;
   disabled?: boolean;
   skipDisabled?: boolean;
+  pauseDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -21,6 +22,7 @@ function handleMainClick() {
   if (props.isIdle) {
     emit('start');
   } else if (props.isRunning) {
+    if (props.pauseDisabled) return;
     emit('pause');
   } else if (props.isPaused) {
     emit('resume');
@@ -38,7 +40,7 @@ function handleResetClick() {
 
 function getMainButtonLabel() {
   if (props.isIdle) return '开始';
-  if (props.isRunning) return '暂停';
+  if (props.isRunning) return props.pauseDisabled ? '休息中' : '暂停';
   if (props.isPaused) return '继续';
   return '开始';
 }
@@ -55,12 +57,14 @@ function getMainButtonLabel() {
     </button>
 
     <button
-      class="group relative px-10 py-4 rounded-full text-white font-medium active:scale-95 transition-all duration-200 shadow-lg"
+      class="group relative px-10 py-4 rounded-full text-white font-medium transition-all duration-200 shadow-lg"
       :class="[
         'bg-primary-500 hover:bg-primary-600 hover:shadow-xl hover:shadow-primary-500/30',
-        props.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+        props.disabled || (props.isRunning && props.pauseDisabled)
+          ? 'opacity-50 cursor-not-allowed'
+          : 'cursor-pointer active:scale-95',
       ]"
-      :disabled="props.disabled"
+      :disabled="props.disabled || (props.isRunning && props.pauseDisabled)"
       @click="handleMainClick"
     >
       <span class="flex items-center gap-2">

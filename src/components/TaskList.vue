@@ -3,13 +3,18 @@ import { ref, computed } from 'vue';
 import { Plus } from 'lucide-vue-next';
 import TaskItem from './TaskItem.vue';
 import { useTaskStore } from '@/stores/task';
+import { useTimerStore } from '@/stores/timer';
 import { formatDate } from '@/utils/date';
 
 const emit = defineEmits<{
   (e: 'select-task', id: string | null): void;
+  (e: 'start-timer', id: string): void;
+  (e: 'pause-timer'): void;
+  (e: 'resume-timer'): void;
 }>();
 
 const taskStore = useTaskStore();
+const timerStore = useTimerStore();
 const newTaskContent = ref('');
 const selectedTaskId = ref<string | null>(null);
 const activeTab = ref<'pending' | 'completed'>('pending');
@@ -68,6 +73,18 @@ function clearSelection() {
   selectedTaskId.value = null;
   emit('select-task', null);
 }
+
+function startTimer(id: string) {
+  emit('start-timer', id);
+}
+
+function pauseTimer() {
+  emit('pause-timer');
+}
+
+function resumeTimer() {
+  emit('resume-timer');
+}
 </script>
 
 <template>
@@ -91,18 +108,6 @@ function clearSelection() {
       >
         <Plus class="w-4 h-4" />
         添加
-      </button>
-    </div>
-
-    <div v-if="selectedTaskId" class="mb-3 p-3 bg-primary-50 rounded-xl flex items-center justify-between">
-      <span class="text-sm text-primary-700 font-medium">
-        已选择任务作为番茄钟目标
-      </span>
-      <button
-        class="text-sm text-primary-600 hover:text-primary-800 transition-colors"
-        @click="clearSelection"
-      >
-        取消选择
       </button>
     </div>
 
@@ -165,9 +170,15 @@ function clearSelection() {
           :key="task.id"
           :task="task"
           :is-selected="selectedTaskId === task.id"
+          :is-timer-running="timerStore.isRunning"
+          :is-timer-paused="timerStore.isPaused"
+          :is-current-task="timerStore.currentTaskId === task.id"
           @toggle="toggleTask"
           @delete="deleteTask"
           @select="selectTask"
+          @start-timer="startTimer"
+          @pause-timer="pauseTimer"
+          @resume-timer="resumeTimer"
         />
       </div>
     </div>

@@ -30,6 +30,19 @@ function handleSelectTask(taskId: string | null) {
   }
 }
 
+function handleStartTimer(taskId: string) {
+  handleSelectTask(taskId);
+  timer.startFocusTimer(taskId);
+}
+
+function handlePauseTimer() {
+  timer.pauseTimer();
+}
+
+function handleResumeTimer() {
+  timer.resumeTimer();
+}
+
 function openSettings() {
   showSettings.value = true;
 }
@@ -77,7 +90,12 @@ function startPomodoro() {
     <main class="px-6 pb-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1440px] mx-auto">
         <div class="lg:col-span-3 order-2 lg:order-1">
-          <TaskList @select-task="handleSelectTask" />
+          <TaskList
+            @select-task="handleSelectTask"
+            @start-timer="handleStartTimer"
+            @pause-timer="handlePauseTimer"
+            @resume-timer="handleResumeTimer"
+          />
         </div>
 
         <div class="lg:col-span-6 order-1 lg:order-2">

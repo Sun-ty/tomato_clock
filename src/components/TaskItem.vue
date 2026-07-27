@@ -1,21 +1,41 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Check, Trash2, Play } from 'lucide-vue-next';
+import { Check, Trash2, Play, Pause } from 'lucide-vue-next';
 import type { Task } from '@/types';
 
 const props = defineProps<{
   task: Task;
   isSelected?: boolean;
+  isTimerRunning?: boolean;
+  isTimerPaused?: boolean;
+  isCurrentTask?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'toggle', id: string): void;
   (e: 'delete', id: string): void;
   (e: 'select', id: string): void;
+  (e: 'start-timer', id: string): void;
+  (e: 'pause-timer'): void;
+  (e: 'resume-timer'): void;
 }>();
 
 const taskPomodoroLabel = computed(() => {
   return props.task.pomodoroCount > 0 ? `🍅 ${props.task.pomodoroCount}` : '';
+});
+
+const isPlaying = computed(() => {
+  return props.isCurrentTask && props.isTimerRunning;
+});
+
+const isPaused = computed(() => {
+  return props.isCurrentTask && props.isTimerPaused;
+});
+
+const playTooltip = computed(() => {
+  if (isPlaying.value) return '暂停';
+  if (isPaused.value) return '继续';
+  return '开始番茄钟';
 });
 
 function handleToggle() {
@@ -30,6 +50,17 @@ function handleDelete(e: Event) {
 function handleSelect() {
   emit('select', props.task.id);
 }
+
+function handleTimerAction(e: Event) {
+  e.stopPropagation();
+  if (isPlaying.value) {
+    emit('pause-timer');
+  } else if (isPaused.value) {
+    emit('resume-timer');
+  } else {
+    emit('start-timer', props.task.id);
+  }
+}
 </script>
 
 <template>
@@ -39,11 +70,12 @@ function handleSelect() {
       task.completed
         ? 'bg-surface-50 opacity-60'
         : 'bg-white hover:bg-primary-50 hover:shadow-md',
-      isSelected ? 'ring-2 ring-primary-500 bg-primary-50' : '',
+      isSelected ? 'bg-primary-50 shadow-md' : '',
     ]"
     @click="handleSelect"
   >
     <button
+      v-if="!task.completed"
       class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
       :class="[
         task.completed
@@ -81,11 +113,13 @@ function handleSelect() {
       </span>
 
       <button
+        v-if="!task.completed"
         class="p-1.5 rounded-lg text-primary-500 hover:bg-primary-100 transition-colors"
-        :title="isSelected ? '取消选择' : '选择此任务'"
-        @click.stop="handleSelect"
+        :title="playTooltip"
+        @click.stop="handleTimerAction"
       >
-        <Play class="w-4 h-4" />
+        <Pause v-if="isPlaying" class="w-4 h-4" />
+        <Play v-else class="w-4 h-4" />
       </button>
 
       <button
