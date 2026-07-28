@@ -5,6 +5,8 @@ import Inspector from 'unplugin-vue-dev-locator/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // 使用相对路径，可同时部署到:
+  base: '/tomato_clock/',
   build: {
     sourcemap: 'hidden',
   },
