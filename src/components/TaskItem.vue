@@ -65,7 +65,7 @@ function handleTimerAction(e: Event) {
 
 <template>
   <div
-    class="group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer"
+    class="group flex items-center gap-3 px-4 py-3 transition-all duration-200 cursor-pointer"
     :class="[
       task.completed
         ? 'bg-surface-50 opacity-60'

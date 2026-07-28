@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { CheckCircle, Clock, Target, TrendingUp } from 'lucide-vue-next';
 import { useTaskStore } from '@/stores/task';
+
+const PIE_COLOR_MAP_KEY = 'tomato_clock_pie_colors';
 
 const taskStore = useTaskStore();
 
@@ -55,14 +57,14 @@ const pieData = computed<PieSlice[]>(() => {
 
   const slices: PieSlice[] = [];
 
-  // 有任务关联的番茄钟按任务名统计
+  // 有任务关联的番茄钟按任务名统计，颜色按任务名稳定分配
   taskStore.todayTasks.forEach((task) => {
     if (task.pomodoroCount > 0) {
       slices.push({
         name: task.content,
         count: task.pomodoroCount,
         percent: (task.pomodoroCount / total) * 100,
-        color: '',
+        color: getSliceColor(task.content),
       });
     }
   });
@@ -75,17 +77,46 @@ const pieData = computed<PieSlice[]>(() => {
       name: '未关联任务',
       count: untracked,
       percent: (untracked / total) * 100,
-      color: '',
+      color: getSliceColor('未关联任务'),
     });
   }
 
-  return slices.map((slice, index) => ({
-    ...slice,
-    color: chartColors[index % chartColors.length],
-  }));
+  return slices;
 });
 
 const hoveredSlice = ref<number | null>(null);
+
+// 为每个任务名稳定分配饼图颜色，旧任务颜色不变，新任务分配下一个未使用颜色
+const sliceColorMap = ref<Record<string, string>>({});
+
+function loadSliceColorMap() {
+  try {
+    const data = localStorage.getItem(PIE_COLOR_MAP_KEY);
+    if (data) sliceColorMap.value = JSON.parse(data);
+  } catch {
+    sliceColorMap.value = {};
+  }
+}
+
+function saveSliceColorMap() {
+  localStorage.setItem(PIE_COLOR_MAP_KEY, JSON.stringify(sliceColorMap.value));
+}
+
+function getSliceColor(name: string): string {
+  if (sliceColorMap.value[name]) {
+    return sliceColorMap.value[name];
+  }
+  const usedColors = new Set(Object.values(sliceColorMap.value));
+  const nextColor = chartColors.find((c) => !usedColors.has(c));
+  const color = nextColor || chartColors[Object.keys(sliceColorMap.value).length % chartColors.length];
+  sliceColorMap.value[name] = color;
+  saveSliceColorMap();
+  return color;
+}
+
+onMounted(() => {
+  loadSliceColorMap();
+});
 
 const piePaths = computed(() => {
   const data = pieData.value;
@@ -97,6 +128,14 @@ const piePaths = computed(() => {
   let startAngle = -Math.PI / 2;
 
   return data.map((slice) => {
+    // 单个 slice 占 100% 时直接画完整圆，避免 arc 绘制异常
+    if (slice.percent >= 99.999) {
+      return {
+        path: `M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 1 1 ${centerX} ${centerY + radius} A ${radius} ${radius} 0 1 1 ${centerX} ${centerY - radius} Z`,
+        color: slice.color,
+      };
+    }
+
     const angle = (slice.percent / 100) * Math.PI * 2;
     const endAngle = startAngle + angle;
 
@@ -236,7 +275,7 @@ const piePaths = computed(() => {
 
           <div
             v-if="hoveredSlice !== null"
-            class="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full px-3 py-2 bg-white rounded-lg shadow-lg border border-gray-100 text-xs whitespace-nowrap z-10"
+            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-white rounded-lg shadow-lg border border-gray-100 text-xs whitespace-nowrap z-50"
           >
             <div class="flex items-center gap-2">
               <span

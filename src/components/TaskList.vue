@@ -94,19 +94,19 @@ function resumeTimer() {
       <span class="text-sm text-text-secondary">{{ today }}</span>
     </div>
 
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2 mb-4 overflow-hidden">
       <input
         v-model="newTaskContent"
         type="text"
         placeholder="添加新任务..."
-        class="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
+        class="flex-1 min-w-0 px-4 h-10 border border-gray-200 rounded-xl focus:outline-none transition-all text-sm"
         @keydown="handleKeydown"
       />
       <button
-        class="px-4 py-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors flex items-center gap-1.5 text-sm font-medium"
+        class="h-10 px-3 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors flex items-center justify-center gap-1 text-sm font-medium whitespace-nowrap flex-shrink-0"
         @click="addTask"
       >
-        <Plus class="w-4 h-4" />
+        <Plus class="w-3.5 h-3.5" />
         添加
       </button>
     </div>
@@ -164,7 +164,7 @@ function resumeTimer() {
           {{ activeTab === 'pending' ? '添加一个任务开始专注吧！' : '完成任务后会出现在这里' }}
         </p>
       </div>
-      <div v-else class="space-y-2">
+      <div v-else class="border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-100 bg-white">
         <TaskItem
           v-for="task in currentTasks"
           :key="task.id"
